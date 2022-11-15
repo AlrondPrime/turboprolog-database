@@ -1,4 +1,4 @@
-include "DEBUG.PRO"
+include "HELPERS.PRO"
 
 DOMAINS
 file = out; in
@@ -6,6 +6,9 @@ name, manufacturer, segment = string
 total_cores = integer
 total_threads = integer
 base_frequency = real
+
+CONSTANTS
+header = "Name;Manufacturer;Segment;Total Cores;Total Threads;Base Frequency;\n"
 
 DATABASE - processors
 processor(name, manufacturer, segment, 
@@ -17,72 +20,105 @@ print_item(name, manufacturer, segment,
 total_cores, total_threads, base_frequency)
 print_next
 save_next
-comma_index(string, integer, integer, string)
+next_sep(string, integer, integer, string)
 parse_next(string)
+read_header(string, string)
 edit_field(string, processors)
 verify_manufacturer(manufacturer)
 verify_segment(segment)
+verify_char(char)
 _save_(string)
 _load_(string)
 
 CLAUSES
-comma_index(Str, Index, Result, Rest_):-
-    frontchar(Str,NextChar,Rest),
+read_header(Data, Rest):-
+    str_len(header, Len),
+    frontstr(Len, Data, Header, Rest),
+    Header=header.
+verify_char(Ch):-
+    Ch >= '0' and Ch <= '9', ! or
+    Ch >= 'a' and Ch <= 'z', ! or
+    Ch >= 'A' and Ch <= 'Z', ! or
+    Ch = '-', ! or 
+    Ch = '_', ! or
+    Ch = ';', ! or
+    Ch = '.', ! or
+    Ch = ' ', ! or
+    Ch = '\n', !.
+verify_char(Ch):-
+    _log_(s("Unexpected char \'"),1),
+    str_char(Str,Ch),
+    _log_(s(Str),0),
+    _log_(s("\' in database file!\m"),0),
+    !,fail.
+next_sep("",Index,0,""):-
+    _log_(s("Expected semicolon in this line:\n"),0),
+    !,fail.
+next_sep(Str, Index, Result, Rest):-
+    frontchar(Str,NextChar,NextStr),   
+    verify_char(NextChar),
     NextChar<>';',
     NextIndex=Index+1,
-    comma_index(Rest, NextIndex, Result, Rest_),
+    next_sep(NextStr, NextIndex, Result, Rest),
     !.
-comma_index(Str, Index, Result, Rest_):-
-    frontchar(Str,_,Rest_),
-    Result=Index,
-    !.
-
+next_sep(Str, Index, Result, Rest):-
+    frontchar(Str,NextChar,Rest),
+    NextChar=';',
+    Result=Index.
 parse_next("").
-parse_next(Line):-
-    comma_index(Line,0,Index1,Rest1),
-    frontstr(Index1,Line,Name,_),
-    %_log_(s(Name)),
+parse_next(Data):-
+    next_sep(Data,0,Index1,Rest1),
+    frontstr(Index1,Data,Name,_),
     
-    comma_index(Rest1,0,Index2,Rest2),
+    next_sep(Rest1,0,Index2,Rest2),
     frontstr(Index2,Rest1,Manufacturer,_),
-    %_log_(s(Man)),
 
-    comma_index(Rest2,0,Index3,Rest3),
+    next_sep(Rest2,0,Index3,Rest3),
     frontstr(Index3,Rest2,Segment,_),
-    %_log_(s(Seg)),
 
-    comma_index(Rest3,0,Index4,Rest4),
-    frontstr(Index4,Rest3,Cores_,_),
-    str_int(Cores_,Total_Cores),
-    %_log_(i(Total_Cores)),
+    next_sep(Rest3,0,Index4,Rest4),
+    frontstr(Index4,Rest3,Cores,_),
+    str_int(Cores,Total_Cores),
     
-    comma_index(Rest4,0,Index5,Rest5),
-    frontstr(Index5,Rest4,Threads_,_),
-    str_int(Threads_,Total_Threads),
-    %_log_(i(Total_Threads)),
-
-    comma_index(Rest5,0,Index6,Rest6),
-    frontstr(Index6,Rest5,Fr_,_),
-    fronttoken(Fr_,Val,Ghz),
-    Ghz="Ghz",    
-    str_real(Val,Base_Frequency),
-    %_log_(r(Base_Frequency)),
-
+    next_sep(Rest4,0,Index5,Rest5),
+    frontstr(Index5,Rest4,Threads,_),
+    str_int(Threads,Total_Threads),
+    
+    next_sep(Rest5,0,Index6,Rest6),
+    frontstr(Index6,Rest5,Fr,_),
+    fronttoken(Fr,Ch,Ghz),
+    Ghz="Ghz",
+    str_real(Ch,Base_Frequency),
+    
+    % skipping newline character
     frontchar(Rest6,_,Rest),
-
+    
+    retractall(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),
     assert(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),
     parse_next(Rest).
+parse_next(Data):-
+    shiftwindow(2),
+    cursor(R,C),
+    R1=R+1,
+    field_str(R,0,78,Data),
+    cursor(R1,0),
+    shiftwindow(1),
+    fail.
 
 _load_(Filename):-
-    openread(in, Filename), !,
+    openread(in, Filename),
     readdevice(in),
-    file_str(Filename, Line),
-    parse_next(Line),
+    file_str(Filename, Data),
+    read_header(Data, Rest),
+    parse_next(Rest),
     closefile(in),
     readdevice(keyboard),
     !.
 _load_(_):-
-    _log_(s("Error loading file")),!.
+    closefile(in),
+    readdevice(keyboard),
+    _log_(s("Error loading database from file!\n"),0),
+    fail.
 save_next:-
     processor(Name, Manufacturer, Segment, 
         Total_Cores, Total_Threads, Base_Frequency),   
@@ -98,7 +134,7 @@ save_next.
 _save_(Filename):-
     openwrite(out, Filename), !,
     writedevice(out), 
-    write("Name;Manufacturer;Segment;Total Cores;Total Threads;Base Frequency;\n"),
+    write(header),
     save_next,
     writedevice(screen),
     closefile(out),
@@ -178,13 +214,12 @@ edit_field("Base Frequency", processor(Name, Manufacturer, Segment, Total_Cores,
 edit_field(_, _):-
     cursor(Row, Column),
     field_attr(Row,Column,11,64),
-    field_str(Row,Column,11,"Wrong data!"),
+    field_str(Row,Column,11,"Wrong field name!"),
     readchar(_),
-    exit(-1),
-    !.
+    !,fail.
 verify_manufacturer("amd").
 verify_manufacturer("amd").
-verify_manufacturer(_):-!,fail.
+verify_manufacturer(_):-_log_(s("Illegal manufacturer\n"),1),fail.
 verify_segment("mobile").
 verify_segment("desktop").
-verify_segment(_):-!,fail.
+verify_segment(_):-_log_(s("Illegal segment\n"),1),fail.
