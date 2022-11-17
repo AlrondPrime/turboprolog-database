@@ -15,44 +15,53 @@ processor(name, manufacturer, segment,
 total_cores, total_threads, base_frequency)
 
 PREDICATES
+search(processors)
 print_db
 print_item(name, manufacturer, segment, 
 total_cores, total_threads, base_frequency)
-print_next
 save_next
 next_sep(string, integer, integer, string)
-parse_next(string)
+parse_data(string)
 read_header(string, string)
 edit_field(string, processors)
 verify_manufacturer(manufacturer)
 verify_segment(segment)
+verify_name(string)
 verify_char(char)
+verify_int(integer)
+verify_real(real)
 _save_(string)
 _load_(string)
+get_fragment(string,string)
+check_newline(string,string)
 
 CLAUSES
 read_header(Data, Rest):-
     str_len(header, Len),
     frontstr(Len, Data, Header, Rest),
-    Header=header.
+    Header=header,
+    !.
+read_header(Data, _):-
+    _log_(s("Corrupted header of database file!\n"),1),
+    !,fail.
 verify_char(Ch):-
     Ch >= '0' and Ch <= '9', ! or
     Ch >= 'a' and Ch <= 'z', ! or
     Ch >= 'A' and Ch <= 'Z', ! or
     Ch = '-', ! or 
     Ch = '_', ! or
-    Ch = ';', ! or
     Ch = '.', ! or
-    Ch = ' ', ! or
-    Ch = '\n', !.
+    Ch = ';', ! or
+    Ch = ' ', 
+    !.
 verify_char(Ch):-
     _log_(s("Unexpected char \'"),1),
     str_char(Str,Ch),
     _log_(s(Str),0),
-    _log_(s("\' in database file!\m"),0),
+    _log_(s("\' in database file!\n"),0),
     !,fail.
 next_sep("",Index,0,""):-
-    _log_(s("Expected semicolon in this line:\n"),0),
+    _log_(s("Error: expected semicolon\n"),0), 
     !,fail.
 next_sep(Str, Index, Result, Rest):-
     frontchar(Str,NextChar,NextStr),   
@@ -64,15 +73,22 @@ next_sep(Str, Index, Result, Rest):-
 next_sep(Str, Index, Result, Rest):-
     frontchar(Str,NextChar,Rest),
     NextChar=';',
-    Result=Index.
-parse_next("").
-parse_next(Data):-
+    Result=Index,
+    !.
+check_newline(Data,Rest):-
+    frontchar(Data,Ch,Rest),
+    Ch='\n',!.
+check_newline(Data,_):-
+    _log_(s("Error: expected line break\n"),0),
+    !,fail.
+parse_data("").
+parse_data(Data):-% TODO:split by predicates corresponding to fields 
     next_sep(Data,0,Index1,Rest1),
     frontstr(Index1,Data,Name,_),
     
     next_sep(Rest1,0,Index2,Rest2),
     frontstr(Index2,Rest1,Manufacturer,_),
-
+    
     next_sep(Rest2,0,Index3,Rest3),
     frontstr(Index3,Rest2,Segment,_),
 
@@ -91,29 +107,30 @@ parse_next(Data):-
     str_real(Ch,Base_Frequency),
     
     % skipping newline character
-    frontchar(Rest6,_,Rest),
+    check_newline(Rest6,Rest),
     
     retractall(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),
     assert(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),
-    parse_next(Rest).
-parse_next(Data):-
+    !,parse_data(Rest),
+    !.
+parse_data(Data):-
     shiftwindow(2),
-    cursor(R,C),
-    R1=R+1,
-    field_str(R,0,78,Data),
-    cursor(R1,0),
+    _log_(s("Cannot parse this line:\n"),0),
+    write('\"'),
+    get_fragment(Data,Line),
+    write(Line),
+    write("\"\n"),
     shiftwindow(1),
-    fail.
-
+    !,fail.
 _load_(Filename):-
     openread(in, Filename),
     readdevice(in),
     file_str(Filename, Data),
     read_header(Data, Rest),
-    parse_next(Rest),
+    Rest<>"",
+    parse_data(Rest),
     closefile(in),
-    readdevice(keyboard),
-    !.
+    readdevice(keyboard).
 _load_(_):-
     closefile(in),
     readdevice(keyboard),
@@ -149,8 +166,7 @@ print_item(Name, Manufacturer, Segment,
     write("Total Threads:",Total_Threads, "  "),
     write("Base Frequency:",Base_Frequency, "GHz\n"),
     write('\n').
-
-print_next:-
+print_db:-
     processor(Name, Manufacturer, Segment, 
         Total_Cores, Total_Threads, Base_Frequency),
     write("Name:",Name, "  "),
@@ -161,65 +177,87 @@ print_next:-
     write("Base Frequency:",Base_Frequency, "GHz\n"),
     write('\n'),
     fail.
-print_next.
-print_db:-
-    makewindow(3,7,7,"Database", 0,0,25,80),
-    clearwindow,
-    print_next,readchar(_), 
-    removewindow(3,1),
-    !.
-
+print_db.
 edit_field("Name", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
-    write("Edit Name:"),readln(Name1),
-    Name1<>"",
+    write("Edit Name:"),readln(Name1), 
+    verify_name(Name1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name1, Manufacturer, Segment , Total_Cores, Total_Threads, Base_Frequency)),  
     !.
 edit_field("Manufacturer", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
     write("Edit Manufacturer:"),readln(Manufacturer1), 
-    Manufacturer1<>"", verify_manufacturer(Manufacturer1),
+    verify_manufacturer(Manufacturer1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer1, Segment , Total_Cores, Total_Threads, Base_Frequency)),  
     !.
 edit_field("Segment", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
     write("Edit Segment:"),readln(Segment1),
-    Segment1<>"", verify_segment(Segment1),
+    verify_segment(Segment1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer, Segment1 , Total_Cores, Total_Threads, Base_Frequency)),  
     !.
 edit_field("Total Cores", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
     write("Edit Total Cores:"),readint(Total_Cores1),
-    Total_Cores1>0,
+    verify_int(Total_Cores1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer, Segment, Total_Cores1, Total_Threads, Base_Frequency)),  
     !.
 edit_field("Total Threads", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
     write("Edit Total Threads:"),readint(Total_Threads1),
-    Total_Threads1>0,
+    verify_int(Total_Threads1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer, Segment , Total_Cores, Total_Threads1, Base_Frequency)),  
     !.
 edit_field("Base Frequency", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
     write("Edit Base Frequency:"),readreal(Base_Frequency1),
-    Base_Frequency1>0, Base_Frequency<1.7E+308,
+    verify_real(Base_Frequency1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer, Segment , Total_Cores, Total_Threads, Base_Frequency1)),  
     !.
 edit_field(_, _):-
-    cursor(Row, Column),
-    field_attr(Row,Column,11,64),
-    field_str(Row,Column,11,"Wrong field name!"),
-    readchar(_),
+    _log_(s("Illegal field name!\n"),1),
     !,fail.
-verify_manufacturer("amd").
-verify_manufacturer("amd").
-verify_manufacturer(_):-_log_(s("Illegal manufacturer\n"),1),fail.
-verify_segment("mobile").
-verify_segment("desktop").
-verify_segment(_):-_log_(s("Illegal segment\n"),1),fail.
+verify_manufacturer("amd"):-!.
+verify_manufacturer("intel"):-!.
+verify_manufacturer(_):-
+    _log_(s("Illegal manufacturer\n"),1),
+    fail.
+verify_segment("mobile"):-!.
+verify_segment("desktop"):-!.
+verify_segment(_):-
+    _log_(s("Illegal segment\n"),1),
+    fail.
+verify_int(Val):-
+    Val>0,!.
+verify_int(_):-
+    _log_(s("Illegal value\n"),1),
+    fail.
+verify_real(Val):-
+    Val>0, Val<1E+308,!.
+verify_real(_):-
+    _log_(s("Illegal value\n"),1),
+    fail.
+search(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
+    processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),!.
+search(_):-
+    _log_(s("There is no processor with this name!\n"),1),
+    fail.
+verify_name(Name):-
+    Name<>"",!.
+verify_name(_):-
+    _log_(s("Illegal name\n"),1),
+    fail.
+get_fragment(In,Out):-
+    str_len(In,Len),
+    Len<=75,
+    Out=In,
+    !.
+get_fragment(In,Out):-
+    frontstr(75,In,Out,_),
+    !.

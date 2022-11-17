@@ -16,22 +16,19 @@ showmenu(list_str)
 render(row)
 update_highlight(row, row)
 callback(key, row, row)
-case(integer)
-row_len(row, integer)
+case(row)
 row_len(row, integer, list_str)
 
 CLAUSES
 % length of menu item lines
-row_len(Row,Len):-row_len(Row,Len,menu_items),!.
 row_len(_,-1,[]):-_log_(s("Invalid menu items list!\n"),1), exit(-1),!.
 row_len(0,Len,[Str|_]):-str_len(Str,Len),!.
-row_len(Row,Len,[_|Tail]):-
-    NextRow=Row-1, row_len(NextRow,Len,Tail),!.
+row_len(Row,Len,[_|Tail]):-NextRow=Row-1, row_len(NextRow,Len,Tail),!.
 % updating menu's highlight
 update_highlight(Row, NextRow):-
-    row_len(Row,Len),
+    row_len(Row,Len,menu_items),
     field_attr(Row,0,Len,7),
-    row_len(NextRow,NextLen),
+    row_len(NextRow,NextLen,menu_items),
     field_attr(NextRow,0,NextLen,14),!.
 % resolving user's choices in menu
 callback(esc, _, _):-!, fail.
@@ -46,26 +43,33 @@ callback(up_arrow, Row, NextRow):-
 callback(up_arrow, Row, NextRow):-
     NextRow=Row-1,update_highlight(Row, NextRow),!.
 callback(enter, Row, Row):-
+    shiftwindow(2),
+    clearwindow,
+    shiftwindow(1),
     trap(case(Row), _, error),
     !.
 callback(other, Row, Row):-!.
 % menu rows(items)
 case(0):-% printing database
-    print_db,!.
+    makewindow(3,7,7,"Database", 0,0,25,80),
+    print_db,
+    readchar(_), 
+    removewindow(3,1),
+    !.
 case(1):-% adding database item
     makewindow(3,7,7,"Item adding", 0,0,25,80),
     write("Enter name:"),readln(Name),
-    Name<>"",
+    verify_name(Name),
     write("Enter Manufacturer(intel/amd):"),readln(Manufacturer),
-    Manufacturer<>"", verify_manufacturer(Manufacturer),
+    verify_manufacturer(Manufacturer),
     write("Enter Segment(desktop/mobile):"),readln(Segment),
-    Segment<>"", verify_segment(Segment),
+    verify_segment(Segment),
     write("Enter Total Cores:"),readint(Total_Cores),
-    Total_Cores>0,
+    verify_int(Total_Cores),
     write("Enter Total Threads:"),readint(Total_Threads),
-    Total_Threads>0,
+    verify_int(Total_Threads),
     write("Enter Base Frequency:"),readreal(Base_Frequency),
-    Base_Frequency>0, Base_Frequency<1E+308,
+    verify_real(Base_Frequency),
     assert(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     _log_(s("Database is succcessfully edited!\n"),1), 
     removewindow(3,1),
@@ -73,7 +77,7 @@ case(1):-% adding database item
 case(2):-% editing database item
     makewindow(3,7,7,"Item editing", 0,0,25,80),
     write("Enter name for editing database item:"),readln(Name),
-    processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
+    search(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),
     print_item(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
     write("Enter field which you want to change:"),
     readln(Line),
@@ -84,26 +88,27 @@ case(2):-% editing database item
 case(3):-% deleting database item
     makewindow(3,7,7,"Database editing", 0,0,25,80),
     write("Enter Name to delete:"),readln(Name),
+    search(processor(Name, _, _, _, _, _)),
     retractall(processor(Name, _, _, _, _, _)),  
     _log_(s("Database item is succcessfully deleted!\n"),1), 
     removewindow(3,1),
     !.
 case(4):-% saving to file      
     makewindow(3,7,7,"Database saving", 0,0,25,80),
-    trap(dir(root_dir, file_mask, Filename,1,1,1), _, file_error),
+    dir(root_dir, file_mask, Filename,1,1,1),
     _save_(FileName),
     _log_(s("Database is succcessfully saved!\n"),1),
     removewindow(3,1),
     !.
 case(5):-% loading from file
     makewindow(3,7,7,"Database loading", 0,0,25,80),
-    trap(dir(root_dir, file_mask, Filename,1,1,1), _, file_error),
+    dir(root_dir, file_mask, Filename,1,1,1),
     _load_(Filename),
     %_load_("DB.CSV"),
     _log_(s("Database is succcessfully loaded!\n"),1),
     removewindow(3,1),!.
 case(_):-
-    _log_(s("Wrong data!"),1),
+    %_log_(s("default case\n"),0),
     existwindow(3),
     removewindow(3,1),
     !.
@@ -118,7 +123,6 @@ showmenu([]).
 showmenu([Str|Tail]):-
     write(Str),nl,
     showmenu(Tail),!.
-
 main:-
     makewindow(1, 7, 14, "Menu", 0, 0, 17, 80),
     makewindow(2, 7, 12, "Message", 17, 0, 8, 80),

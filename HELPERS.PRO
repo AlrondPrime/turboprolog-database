@@ -28,15 +28,16 @@ _log_(Msg, Clearwindow):-
     shiftwindow(2),
     clr(Clearwindow),
     logImpl(Msg),
+    %    readchar(_),
     writedevice(WDev),readdevice(RDev),
     shiftwindow(WNum),
     !.
 logImpl(s(Msg)):-write(Msg),!.
-logImpl(i(Msg)):-write(Msg),nl,!.
-logImpl(r(Msg)):-write(Msg),nl,!.
-logImpl(c(Msg)):-write(Msg),nl,!.
-clr(0).
-clr(1):-clearwindow,!.
+logImpl(i(Msg)):-write(Msg),write(' '),!.
+logImpl(r(Msg)):-write(Msg),write(' '),!.
+logImpl(c(Msg)):-write(Msg),write(' '),!.
+clr(0):-!.
+clr(_):-clearwindow,!.
 error:-
     makewindow(WNum,_,_,_,_,_,_,_),
     removewindow(WNum,1),
