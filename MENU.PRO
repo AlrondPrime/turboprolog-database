@@ -58,15 +58,15 @@ case(0):-% printing database
     !.
 case(1):-% adding database item
     makewindow(3,7,7,"Item adding", 0,0,25,80),
-    write("Enter name:"),readln(Name),
+    write("Enter Name:"),readln(Name),
     verify_name(Name),
     write("Enter Manufacturer(intel/amd):"),readln(Manufacturer),
     verify_manufacturer(Manufacturer),
     write("Enter Segment(desktop/mobile):"),readln(Segment),
     verify_segment(Segment),
-    write("Enter Total Cores:"),readint(Total_Cores),
+    write("Enter Total Cores:"),read_int(Total_Cores),
     verify_int(Total_Cores),
-    write("Enter Total Threads:"),readint(Total_Threads),
+    write("Enter Total Threads:"),read_int(Total_Threads),
     verify_int(Total_Threads),
     write("Enter Base Frequency:"),readreal(Base_Frequency),
     verify_real(Base_Frequency),

@@ -10,6 +10,7 @@ file_error
 _log_(msg, integer)
 logImpl(msg)
 clr(integer)
+read_int(integer)
 
 CLAUSES
 % key code to key name
@@ -50,3 +51,9 @@ file_error:-
     _log_(s("Error: corrupted file!\n"),0),
     readchar(_),
     exit(-1).
+read_int(Val):-
+    readint(Val),
+    !.
+read_int(_):-
+    _log_(s("Error: illegal integer value!\n"),0),
+    !,fail.

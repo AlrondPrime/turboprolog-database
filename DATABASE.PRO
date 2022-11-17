@@ -61,7 +61,7 @@ verify_char(Ch):-
     Ch = ' ', 
     !.
 verify_char(Ch):-
-    _log_(s("Unexpected char \'"),1),
+    _log_(s("Unexpected character \'"),1),
     str_char(Str,Ch),
     _log_(s(Str),0),
     _log_(s("\' in database file!\n"),0),
@@ -90,17 +90,11 @@ check_newline(Data,_):-
 parse_data("").
 parse_data(Data):- 
     read_name(Data,Name,Rest1),
-    verify_name(Name),
     read_manufacturer(Rest1,Manufacturer,Rest2),
-    verify_manufacturer(Manufacturer),
     read_segment(Rest2,Segment,Rest3),
-    verify_segment(Segment),
     read_cores(Rest3,Total_Cores,Rest4),
-    verify_int(Total_Cores),
     read_threads(Rest4,Total_Threads,Rest5),
-    verify_int(Total_Threads),
     read_frequency(Rest5,Base_Frequency,Rest6),
-    verify_real(Base_Frequency),
 
     % skipping newline character
     check_newline(Rest6,Rest),
@@ -121,6 +115,7 @@ parse_data(Data):-
 read_name(Data,Name,Rest):-
     next_sep(Data,0,Index,Rest),
     frontstr(Index,Data,Name,_),
+    verify_name(Name),
     !.
 read_name(_,_,_):-
     _log_(s("Error: cannot read name\n"),0),
@@ -128,6 +123,7 @@ read_name(_,_,_):-
 read_manufacturer(Data,Manufacturer,Rest):-
     next_sep(Data,0,Index,Rest),
     frontstr(Index,Data,Manufacturer,_),
+    verify_manufacturer(Manufacturer),
     !.
 read_manufacturer(_,_,_):-
     _log_(s("Error: cannot read manufacturer\n"),0),
@@ -135,6 +131,7 @@ read_manufacturer(_,_,_):-
 read_segment(Data,Segment,Rest):-
     next_sep(Data,0,Index,Rest),
     frontstr(Index,Data,Segment,_),
+    verify_segment(Segment),
     !.
 read_segment(_,_,_):-
     _log_(s("Error: cannot read segment\n"),0),
@@ -143,6 +140,7 @@ read_cores(Data,Total_Cores,Rest):-
     next_sep(Data,0,Index,Rest),
     frontstr(Index,Data,Cores,_),
     str_int(Cores,Total_Cores),
+    verify_int(Total_Cores),
     !.
 read_cores(_,_,_):-
     _log_(s("Error: cannot read cores\n"),0),
@@ -151,6 +149,7 @@ read_threads(Data,Total_Threads,Rest):-
     next_sep(Data,0,Index,Rest),
     frontstr(Index,Data,Threads,_),
     str_int(Threads,Total_Threads),
+    verify_int(Total_Threads),
     !.
 read_threads(_,_,_):-
     _log_(s("Error: cannot read threads\n"),0),
@@ -161,6 +160,7 @@ read_frequency(Data,Base_Frequency,Rest):-
     fronttoken(Frequency,Value,Ghz),
     Ghz="Ghz",
     str_real(Value,Base_Frequency),
+    verify_real(Base_Frequency),
     !.
 read_frequency(_,_,_):-
     _log_(s("Error: cannot read frequency\n"),0),
@@ -244,14 +244,14 @@ edit_field("Segment", processor(Name, Manufacturer, Segment, Total_Cores, Total_
     !.
 edit_field("Total Cores", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
-    write("Edit Total Cores:"),readint(Total_Cores1),
+    write("Edit Total Cores:"),read_int(Total_Cores1),
     verify_int(Total_Cores1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer, Segment, Total_Cores1, Total_Threads, Base_Frequency)),  
     !.
 edit_field("Total Threads", processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)):-
     processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency),
-    write("Edit Total Threads:"),readint(Total_Threads1),
+    write("Edit Total Threads:"),read_int(Total_Threads1),
     verify_int(Total_Threads1),
     retract(processor(Name, Manufacturer, Segment, Total_Cores, Total_Threads, Base_Frequency)),  
     assert(processor(Name, Manufacturer, Segment , Total_Cores, Total_Threads1, Base_Frequency)),  
