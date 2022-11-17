@@ -34,6 +34,12 @@ _save_(string)
 _load_(string)
 get_fragment(string,string)
 check_newline(string,string)
+read_name(string,string,string)
+read_manufacturer(string,string,string)
+read_segment(string,string,string)
+read_cores(string,integer,string)
+read_threads(string,integer,string)
+read_frequency(string,real,string)
 
 CLAUSES
 read_header(Data, Rest):-
@@ -82,30 +88,20 @@ check_newline(Data,_):-
     _log_(s("Error: expected line break\n"),0),
     !,fail.
 parse_data("").
-parse_data(Data):-% TODO:split by predicates corresponding to fields 
-    next_sep(Data,0,Index1,Rest1),
-    frontstr(Index1,Data,Name,_),
-    
-    next_sep(Rest1,0,Index2,Rest2),
-    frontstr(Index2,Rest1,Manufacturer,_),
-    
-    next_sep(Rest2,0,Index3,Rest3),
-    frontstr(Index3,Rest2,Segment,_),
+parse_data(Data):- 
+    read_name(Data,Name,Rest1),
+    verify_name(Name),
+    read_manufacturer(Rest1,Manufacturer,Rest2),
+    verify_manufacturer(Manufacturer),
+    read_segment(Rest2,Segment,Rest3),
+    verify_segment(Segment),
+    read_cores(Rest3,Total_Cores,Rest4),
+    verify_int(Total_Cores),
+    read_threads(Rest4,Total_Threads,Rest5),
+    verify_int(Total_Threads),
+    read_frequency(Rest5,Base_Frequency,Rest6),
+    verify_real(Base_Frequency),
 
-    next_sep(Rest3,0,Index4,Rest4),
-    frontstr(Index4,Rest3,Cores,_),
-    str_int(Cores,Total_Cores),
-    
-    next_sep(Rest4,0,Index5,Rest5),
-    frontstr(Index5,Rest4,Threads,_),
-    str_int(Threads,Total_Threads),
-    
-    next_sep(Rest5,0,Index6,Rest6),
-    frontstr(Index6,Rest5,Fr,_),
-    fronttoken(Fr,Ch,Ghz),
-    Ghz="Ghz",
-    str_real(Ch,Base_Frequency),
-    
     % skipping newline character
     check_newline(Rest6,Rest),
     
@@ -121,6 +117,53 @@ parse_data(Data):-
     write(Line),
     write("\"\n"),
     shiftwindow(1),
+    !,fail.
+read_name(Data,Name,Rest):-
+    next_sep(Data,0,Index,Rest),
+    frontstr(Index,Data,Name,_),
+    !.
+read_name(_,_,_):-
+    _log_(s("Error: cannot read name\n"),0),
+    !,fail.
+read_manufacturer(Data,Manufacturer,Rest):-
+    next_sep(Data,0,Index,Rest),
+    frontstr(Index,Data,Manufacturer,_),
+    !.
+read_manufacturer(_,_,_):-
+    _log_(s("Error: cannot read manufacturer\n"),0),
+    !,fail.
+read_segment(Data,Segment,Rest):-
+    next_sep(Data,0,Index,Rest),
+    frontstr(Index,Data,Segment,_),
+    !.
+read_segment(_,_,_):-
+    _log_(s("Error: cannot read segment\n"),0),
+    !,fail.
+read_cores(Data,Total_Cores,Rest):-
+    next_sep(Data,0,Index,Rest),
+    frontstr(Index,Data,Cores,_),
+    str_int(Cores,Total_Cores),
+    !.
+read_cores(_,_,_):-
+    _log_(s("Error: cannot read cores\n"),0),
+    !,fail.
+read_threads(Data,Total_Threads,Rest):-
+    next_sep(Data,0,Index,Rest),
+    frontstr(Index,Data,Threads,_),
+    str_int(Threads,Total_Threads),
+    !.
+read_threads(_,_,_):-
+    _log_(s("Error: cannot read threads\n"),0),
+    !,fail.
+read_frequency(Data,Base_Frequency,Rest):-
+    next_sep(Data,0,Index,Rest),
+    frontstr(Index,Data,Frequency,_),
+    fronttoken(Frequency,Value,Ghz),
+    Ghz="Ghz",
+    str_real(Value,Base_Frequency),
+    !.
+read_frequency(_,_,_):-
+    _log_(s("Error: cannot read frequency\n"),0),
     !,fail.
 _load_(Filename):-
     openread(in, Filename),

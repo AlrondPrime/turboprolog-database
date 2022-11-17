@@ -104,11 +104,9 @@ case(5):-% loading from file
     makewindow(3,7,7,"Database loading", 0,0,25,80),
     dir(root_dir, file_mask, Filename,1,1,1),
     _load_(Filename),
-    %_load_("DB.CSV"),
     _log_(s("Database is succcessfully loaded!\n"),1),
     removewindow(3,1),!.
 case(_):-
-    %_log_(s("default case\n"),0),
     existwindow(3),
     removewindow(3,1),
     !.
@@ -124,8 +122,8 @@ showmenu([Str|Tail]):-
     write(Str),nl,
     showmenu(Tail),!.
 main:-
-    makewindow(1, 7, 14, "Menu", 0, 0, 17, 80),
-    makewindow(2, 7, 12, "Message", 17, 0, 8, 80),
+    makewindow(1, 7, 14, "Menu", 0, 0, 16, 80),
+    makewindow(2, 7, 12, "Message", 16, 0, 9, 80),
     shiftwindow(1),
     include_static_db,
     showmenu(menu_items),
